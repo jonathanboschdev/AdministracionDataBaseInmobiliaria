@@ -129,7 +129,7 @@ async function loadProperties() {
             .from('property')
             .select(`
                 id,nombre,precio,property_type_id,transaction_type_id,status_type_id,
-                estrato,area_m2,habitaciones,banos,parqueadero,caracteristicas,created_at
+                estrato,area_m2,habitaciones,banos,parqueadero,caracteristicas,destacada,created_at
                 `)
             .order('created_at', { ascending: false });
 
@@ -192,6 +192,7 @@ async function loadProperties() {
                                 <div class="property-info-item"><strong>Dirección:</strong> ${location.direccion || 'N/A'}</div>
                                 <div class="property-info-item"><strong>Parqueadero:</strong> ${prop.parqueadero ? 'Sí' : 'No'}</div>
                                 <div class="property-info-item"><strong>Galería:</strong> ${imageCount}</div>
+                                <div class="property-info-item"><strong>Destacada:</strong> ${prop.destacada ? 'Sí' : 'No'}</div>
                             </div>
                             <div class="property-actions">
                                 <button class="btn btn-primary btn-small" onclick="editProperty(${prop.id})">✏️ Editar</button>
@@ -257,6 +258,7 @@ async function editProperty(id) {
         document.getElementById('propBanos').value = data.banos || '';
         document.getElementById('propParqueadero').checked = data.parqueadero;
         document.getElementById('propDescripcion').value = data.descripcion || '';
+        document.getElementById('propDestacada').checked = !!data.destacada;
 
         // USAR el resultado de la consulta separada a `location`
         const location = loc || {};
@@ -294,7 +296,8 @@ document.getElementById('propertyForm').addEventListener('submit', async (e) => 
         banos: document.getElementById('propBanos').value ? parseInt(document.getElementById('propBanos').value) : null,
         parqueadero: document.getElementById('propParqueadero').checked,
         descripcion: document.getElementById('propDescripcion').value || null,
-        caracteristicas: caracteristicas
+        caracteristicas: caracteristicas,
+        destacada: document.getElementById('propDestacada').checked
     };
 
     const locationData = {
@@ -689,4 +692,3 @@ window.addEventListener('click', (e) => {
 // ===== MENSAJE INICIAL =====
 logConsole('🚀 Sistema de gestión de propiedades iniciado', 'success');
 logConsole('👤 Por favor inicia sesión para continuar', 'info');
-
