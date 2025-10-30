@@ -53,6 +53,7 @@ create table property (
   habitaciones smallint check (habitaciones >= 0),
   banos smallint check (banos >= 0),
   parqueadero boolean not null default false,
+  destacada  boolean not null default false,
 
   descripcion    text,
   caracteristicas jsonb default '[]'::jsonb,   -- lista de strings
@@ -149,3 +150,4 @@ insert into status_type (code,name) values
 ('DISPONIBLE','Disponible'),
 ('NO_DISPONIBLE','No disponible')
 on conflict do nothing;
+
