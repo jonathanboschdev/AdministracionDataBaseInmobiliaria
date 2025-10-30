@@ -27,6 +27,17 @@ drop policy if exists admin_insert_location  on location;
 drop policy if exists admin_update_location  on location;
 drop policy if exists admin_delete_location  on location;
 
+-- Función is_admin (ajusta el UUID del admin)
+drop function if exists is_admin();
+
+create or replace function is_admin()
+returns boolean
+language sql stable
+as $$
+  select auth.role() = 'service_role'
+      or auth.uid()  = '2a0a38bd-6aa3-48c8-a724-f661aaeefffc'::uuid
+$$;
+
 -- Lectura pública (propiedades DISPONIBLES); media/location lectura abierta
 create policy public_read_property
 on property for select to public
@@ -40,15 +51,11 @@ create policy public_read_location
 on location for select to public
 using (true);
 
--- Función is_admin (ajusta el UUID del admin)
-drop function if exists is_admin();
-create or replace function is_admin()
-returns boolean
-language sql stable
-as $$
-  select auth.role() = 'service_role'
-      or auth.uid()  = '2a0a38bd-6aa3-48c8-a724-f661aaeefffc'::uuid
-$$;
+-- Lectura administrador (todas las propiedades Disponibles y No disponibles)
+create policy admin_read_property
+on property for select to authenticated
+using (is_admin());
+
 
 -- Escritura SOLO administrador
 -- PROPERTY
@@ -89,3 +96,4 @@ using (is_admin()) with check (is_admin());
 create policy admin_delete_media
 on media for delete to authenticated
 using (is_admin());
+
