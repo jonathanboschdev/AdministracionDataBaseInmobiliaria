@@ -191,7 +191,7 @@ async function loadProperties() {
                                 <div class="property-info-item"><strong>Sector:</strong> ${location.sector || 'N/A'}</div>
                                 <div class="property-info-item"><strong>Dirección:</strong> ${location.direccion || 'N/A'}</div>
                                 <div class="property-info-item"><strong>Parqueadero:</strong> ${prop.parqueadero ? 'Sí' : 'No'}</div>
-                                <div class="property-info-item"><strong>Imágenes:</strong> ${imageCount}</div>
+                                <div class="property-info-item"><strong>Galería:</strong> ${imageCount}</div>
                             </div>
                             <div class="property-actions">
                                 <button class="btn btn-primary btn-small" onclick="editProperty(${prop.id})">✏️ Editar</button>
@@ -461,7 +461,7 @@ async function manageGallery(propertyId, propertyName) {
 
 async function loadGallery(propertyId) {
     const grid = document.getElementById('galleryGrid');
-    grid.innerHTML = '<div class="loading">⏳ Cargando imágenes...</div>';
+    grid.innerHTML = '<div class="loading">⏳ Cargando galería...</div>';
 
     try {
         const { data, error } = await supabase
@@ -483,21 +483,24 @@ async function loadGallery(propertyId) {
             return;
         }
 
-        // Reconstruir URL pública en tiempo real (ignoramos la columna `url`)
+        // Reconstruir URL pública (ignoramos columna url)
         const withUrls = data.map(m => {
-            const { data: pub } = supabase
-                .storage.from('properties')
-                .getPublicUrl(m.storage_key);
+            const { data: pub } = supabase.storage.from('properties').getPublicUrl(m.storage_key);
             return { ...m, publicUrl: pub.publicUrl };
         });
 
-        grid.innerHTML = withUrls.map(img => `
-          <div class="gallery-item ${img.is_primary ? 'primary' : ''}">
-            <img src="${img.publicUrl}" alt="${img.alt_text || 'Imagen de propiedad'}">
-            ${img.is_primary ? '<span class="primary-badge">Principal</span>' : ''}
-            <button class="delete-img" onclick="deleteImage(${img.id}, ${propertyId})">🗑️ Eliminar</button>
-          </div>
-        `).join('');
+        grid.innerHTML = withUrls.map(m => {
+            const mediaTag = (m.kind === 'VIDEO')
+                ? `<video src="${m.publicUrl}" controls playsinline preload="metadata"></video>`
+                : `<img src="${m.publicUrl}" alt="${m.alt_text || 'Imagen de propiedad'}">`;
+            return `
+                <div class="gallery-item ${m.is_primary ? 'primary' : ''}">
+       ${mediaTag}
+       ${m.is_primary ? '<span class="primary-badge">Principal</span>' : ''}
+       <button class="delete-img" onclick="deleteMedia(${m.id}, ${propertyId})">🗑️ Eliminar</button>
+        </div>
+         `;
+        }).join('');
 
 
         logConsole(`✅ ${data.length} imagen(es) cargada(s)`, 'success');
@@ -517,7 +520,7 @@ document.getElementById('primaryImageInput').addEventListener('change', async (e
     if (!file) return;
 
     const propertyId = document.getElementById('galleryPropertyId').value;
-    await uploadImage(file, propertyId, true);
+    await uploadMedia(file, propertyId, { kind: 'IMAGE', isPrimary: true });
     e.target.value = '';
 });
 
@@ -531,90 +534,95 @@ document.getElementById('additionalImagesInput').addEventListener('change', asyn
     logConsole(`📤 Subiendo ${files.length} imagen(es) adicional(es)...`, 'info');
 
     for (let i = 0; i < files.length; i++) {
-        await uploadImage(files[i], propertyId, false);
+        await uploadMedia(files[i], propertyId, { kind: 'IMAGE', isPrimary: false });
     }
 
     e.target.value = '';
 });
 
-async function uploadImage(file, propertyId, isPrimary) {
+// ===== SUBIR VIDEOS =====
+document.getElementById('videosInput').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const propertyId = document.getElementById('galleryPropertyId').value;
+
+    logConsole(`📤 Subiendo ${files.length} video(s)...`, 'info');
+
+    for (let i = 0; i < files.length; i++) {
+        await uploadMedia(files[i], propertyId, { kind: 'VIDEO', isPrimary: false });
+    }
+
+    e.target.value = '';
+});
+
+
+async function uploadMedia(file, propertyId, { kind = 'IMAGE', isPrimary = false } = {}) {
     try {
-        // Validar tipo de archivo
-        if (!file.type.startsWith('image/')) {
-            throw new Error('El archivo debe ser una imagen válida');
+        // Validaciones por tipo
+        if (kind === 'IMAGE') {
+            if (!file.type.startsWith('image/')) throw new Error('El archivo debe ser una imagen válida');
+            if (file.size > 5 * 1024 * 1024) throw new Error('La imagen no debe superar los 5MB');
+        } else if (kind === 'VIDEO') {
+            if (!file.type.startsWith('video/')) throw new Error('El archivo debe ser un video válido');
+            // Límite sugerido para video: 200MB (ajústalo si tu bucket permite más)
+            if (file.size > 200 * 1024 * 1024) throw new Error('El video no debe superar los 200MB');
+        } else {
+            throw new Error('Tipo de medio no soportado');
         }
 
-        // Validar tamaño (máximo 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            throw new Error('La imagen no debe superar los 5MB');
-        }
+        logConsole(`📤 Subiendo: ${file.name} (${(file.size / 1024).toFixed(2)} KB) como ${kind}...`, 'info');
 
-        logConsole(`📤 Subiendo: ${file.name} (${(file.size / 1024).toFixed(2)} KB)...`, 'info');
-
-        // Generar nombre único para el archivo
-        const fileExt = file.name.split('.').pop();
+        // Nombre único
+        const fileExt = (file.name.split('.').pop() || '').toLowerCase();
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(7);
         const fileName = `${currentUser.id}/${propertyId}/${timestamp}_${random}.${fileExt}`;
 
-        // Subir archivo al storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        // Subir a Storage
+        const { error: uploadError } = await supabase.storage
             .from('properties')
             .upload(fileName, file);
-
         if (uploadError) throw uploadError;
 
-        // Obtener URL pública del archivo (NO) 
-        const { data: urlData } = supabase.storage
-            .from('properties')
-            .getPublicUrl(fileName);
-
-        // Si es imagen principal, desmarcar las demás como principales
-        if (isPrimary) {
-            await supabase
-                .from('media')
-                .update({ is_primary: false })
-                .eq('property_id', propertyId);
-
+        // Si marcas una principal y es IMAGEN, desmarcar otras
+        if (isPrimary && kind === 'IMAGE') {
+            await supabase.from('media').update({ is_primary: false }).eq('property_id', propertyId);
             logConsole('Desmarcando imágenes principales anteriores...', 'info');
         }
 
-        // Insertar registro en la tabla media
-        const { error: mediaError } = await supabase
-            .from('media')
-            .insert({
-                property_id: propertyId,
-                kind: 'IMAGE',
-                storage_key: fileName,
-                url: urlData.publicUrl,
-                is_primary: isPrimary,
-                sort_order: isPrimary ? 0 : 999
-            });
-
+        // Insert en media
+        const { error: mediaError } = await supabase.from('media').insert({
+            property_id: propertyId,
+            kind,                    // 'IMAGE' | 'VIDEO'
+            storage_key: fileName,
+            // url: opcional; NO dependemos de ella para mostrar
+            is_primary: isPrimary && kind === 'IMAGE',
+            sort_order: isPrimary && kind === 'IMAGE' ? 0 : 999
+        });
         if (mediaError) throw mediaError;
 
-        logConsole(`✅ Imagen subida exitosamente${isPrimary ? ' (PRINCIPAL)' : ''}: ${file.name}`, 'success');
+        logConsole(`✅ ${kind === 'IMAGE' ? 'Imagen' : 'Video'} subido exitosamente${isPrimary ? ' (PRINCIPAL)' : ''}: ${file.name}`, 'success');
         await loadGallery(propertyId);
 
     } catch (error) {
-        logConsole(`❌ Error subiendo imagen ${file.name}: ${error.message}`, 'error');
-        alert(`Error al subir imagen: ${error.message}`);
+        logConsole(`❌ Error subiendo ${kind === 'IMAGE' ? 'imagen' : 'video'} ${file.name}: ${error.message}`, 'error');
+        alert(`Error al subir ${kind === 'IMAGE' ? 'imagen' : 'video'}: ${error.message}`);
     }
 }
 
+
 // ===== ELIMINAR IMAGEN =====
-async function deleteImage(mediaId, propertyId) {
-    if (!confirm('¿Eliminar esta imagen permanentemente?')) {
-        return;
-    }
+async function deleteMedia(mediaId, propertyId) {
+    if (!confirm('¿Eliminar este elemento de la galería permanentemente?')) return;
 
     try {
-        logConsole(`Eliminando imagen ID: ${mediaId}...`, 'info');
+        logConsole(`Eliminando media ID: ${mediaId}...`, 'info');
 
         // Obtener información de la imagen
         const { data: mediaData, error: fetchError } = await supabase
             .from('media')
-            .select('storage_key, is_primary')
+            .select('storage_key, is_primary, kind')
             .eq('id', mediaId)
             .single();
 
@@ -635,12 +643,12 @@ async function deleteImage(mediaId, propertyId) {
 
         if (deleteError) throw deleteError;
 
-        logConsole(`✅ Imagen eliminada exitosamente${mediaData.is_primary ? ' (era la principal)' : ''}`, 'success');
+        logConsole(`✅ ${mediaData.kind === 'VIDEO' ? 'Video' : 'Imagen'} eliminado correctamente${mediaData.is_primary ? ' (era principal)' : ''}`, 'success');
         await loadGallery(propertyId);
 
     } catch (error) {
-        logConsole(`❌ Error eliminando imagen: ${error.message}`, 'error');
-        alert('Error al eliminar imagen: ' + error.message);
+        logConsole(`❌ Error eliminando media: ${error.message}`, 'error');
+        alert('Error al eliminar: ' + error.message);
     }
 }
 
@@ -681,3 +689,4 @@ window.addEventListener('click', (e) => {
 // ===== MENSAJE INICIAL =====
 logConsole('🚀 Sistema de gestión de propiedades iniciado', 'success');
 logConsole('👤 Por favor inicia sesión para continuar', 'info');
+
