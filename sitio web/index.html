@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gestión de Propiedades</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ===== LOGIN SCREEN ===== */
+        .login-container {
+            max-width: 420px;
+            margin: 100px auto;
+            background: white;
+            padding: 50px 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-container h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .login-container p {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 14px;
+        }
+
+        /* ===== ADMIN DASHBOARD ===== */
+        .admin-header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-header h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .admin-header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* ===== CONSOLA ===== */
+        .console {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+
+        .console-line {
+            margin-bottom: 8px;
+            padding: 4px 0;
+            line-height: 1.4;
+        }
+
+        .console-success {
+            color: #00ff00;
+        }
+
+        .console-error {
+            color: #ff4444;
+        }
+
+        .console-info {
+            color: #44aaff;
+        }
+
+        .console-warning {
+            color: #ffaa00;
+        }
+
+        /* ===== LAYOUT PRINCIPAL ===== */
+        .main-content {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .content-area {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            min-height: 500px;
+        }
+
+        /* ===== BOTONES ===== */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #00b894;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #00a383;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #cc0000;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+            width: auto;
+        }
+
+        /* ===== FORMULARIOS ===== */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        /* ===== TARJETAS DE PROPIEDADES ===== */
+        .property-card {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .property-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .property-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .property-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        .property-info-item {
+            color: #555;
+        }
+
+        .property-info-item strong {
+            color: #333;
+        }
+
+        .property-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* ===== GALERÍA ===== */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 3px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-item .delete-img {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 68, 68, 0.95);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.3s;
+            opacity: 0;
+        }
+
+        .gallery-item:hover .delete-img {
+            opacity: 1;
+        }
+
+        .gallery-item .delete-img:hover {
+            background: #cc0000;
+        }
+
+        .gallery-item.primary {
+            border-color: #00b894;
+            border-width: 4px;
+        }
+
+        .primary-badge {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: #00b894;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* ===== INPUT DE ARCHIVOS ===== */
+        .file-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 20px;
+            background: #f8f9fa;
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .file-input-label:hover {
+            background: #e9ecef;
+            border-color: #5568d3;
+            transform: scale(1.02);
+        }
+
+        /* ===== MODALES ===== */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 35px;
+            border-radius: 16px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            font-size: 26px;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 32px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 35px;
+            height: 35px;
+            transition: all 0.3s;
+        }
+
+        .close-modal:hover {
+            color: #ff4444;
+            transform: rotate(90deg);
+        }
+
+        /* ===== CARACTERÍSTICAS ===== */
+        .caracteristicas-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .caracteristicas-input input {
+            flex: 1;
+        }
+
+        .caracteristicas-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .caracteristica-tag {
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 25px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .caracteristica-tag button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+
+        .caracteristica-tag button:hover {
+            transform: scale(1.3);
+        }
+
+        /* ===== ESTADOS ===== */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            font-size: 16px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #999;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #666;
+            font-size: 20px;
+        }
+
+        .empty-state p {
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* ===== UTILIDADES ===== */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- ===== PANTALLA DE LOGIN ===== -->
+        <div id="loginScreen">
+            <div class="login-container">
+                <h1>🏠 Admin Portal</h1>
+                <p>Gestión de Propiedades</p>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" required placeholder="admin@example.com"
+                            autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="loginPassword" required placeholder="••••••••"
+                            autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ===== DASHBOARD ADMINISTRATIVO ===== -->
+        <div id="adminDashboard" class="hidden">
+            <div class="admin-header">
+                <h1>🏠 Gestión de Propiedades</h1>
+                <div class="user-info">
+                    <span id="userEmail"></span>
+                    <button id="logoutBtn" class="btn btn-secondary btn-small">Cerrar Sesión</button>
+                </div>
+            </div>
+
+            <div class="console" id="console">
+                <div class="console-line console-info">[Sistema] Consola de operaciones iniciada...</div>
+            </div>
+
+            <div class="main-content">
+                <div class="sidebar">
+                    <h3>Acciones Principales</h3>
+                    <button id="btnNewProperty" class="btn btn-primary">➕ Nueva Propiedad</button>
+                    <button id="btnViewAll" class="btn btn-success">📋 Ver Todas</button>
+                    <button id="btnRefresh" class="btn btn-secondary">🔄 Actualizar</button>
+                </div>
+
+                <div class="content-area">
+                    <div id="propertiesList">
+                        <div class="loading">Cargando propiedades...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MODAL NUEVA/EDITAR PROPIEDAD ===== -->
+        <div id="propertyModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Nueva Propiedad</h2>
+                    <button class="close-modal" onclick="closePropertyModal()">&times;</button>
+                </div>
+                <form id="propertyForm">
+                    <input type="hidden" id="editPropertyId">
+
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input type="text" id="propNombre" required placeholder="Ej: Apartamento en El Poblado">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo de Propiedad *</label>
+                            <select id="propType" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Transacción *</label>
+                            <select id="propTransaction" required></select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio *</label>
+                            <input type="number" id="propPrecio" required min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Estado *</label>
+                            <select id="propStatus" required></select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Estrato</label>
+                            <input type="number" id="propEstrato" min="1" max="6" placeholder="1-6">
+                        </div>
+                        <div class="form-group">
+                            <label>Área (m²)</label>
+                            <input type="number" id="propArea" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Habitaciones</label>
+                            <input type="number" id="propHabitaciones" min="0" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Baños</label>
+                            <input type="number" id="propBanos" min="0" placeholder="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="propParqueadero">
+                            <label for="propParqueadero" style="margin-bottom: 0;">Tiene parqueadero</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Municipio *</label>
+                        <input type="text" id="propMunicipio" required placeholder="Ej: Medellín">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Sector</label>
+                            <input type="text" id="propSector" placeholder="Ej: El Poblado">
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="propDireccion" placeholder="Ej: Calle 10 # 43-20">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea id="propDescripcion" placeholder="Describe la propiedad..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Características</label>
+                        <div class="caracteristicas-input">
+                            <input type="text" id="caracteristicaInput" placeholder="Ej: Balcón, Piscina, Gimnasio...">
+                            <button type="button" class="btn btn-primary btn-small"
+                                onclick="addCaracteristica()">Agregar</button>
+                        </div>
+                        <div class="caracteristicas-list" id="caracteristicasList"></div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success">💾 Guardar Propiedad</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ===== MODAL GESTIÓN DE IMÁGENES ===== -->
+        <div id="galleryModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🖼️ Gestión de Imágenes</h2>
+                    <button class="close-modal" onclick="closeGalleryModal()">&times;</button>
+                </div>
+                <input type="hidden" id="galleryPropertyId">
+                <h3 id="galleryPropertyName" style="color: #667eea; margin-bottom: 25px; font-size: 20px;"></h3>
+
+                <div class="form-group">
+                    <label>📷 Subir Imagen Principal</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="primaryImageInput" accept="image/*">
+                        <label for="primaryImageInput" class="file-input-label">
+                            Seleccionar imagen principal
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>🖼️ Subir Imágenes Adicionales (múltiples)</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="additionalImagesInput" accept="image/*" multiple>
+                        <label for="additionalImagesInput" class="file-input-label">
+                            Seleccionar imágenes adicionales
+                        </label>
+                    </div>
+                </div>
+
+                <h3 style="margin: 35px 0 20px; color: #333; font-size: 18px;">Galería Actual</h3>
+                <div id="galleryGrid" class="gallery-grid">
+                    <div class="loading">Cargando galería...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./app.js" defer></script>
+</body>
+
+</html>

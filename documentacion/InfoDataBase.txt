@@ -1,0 +1,26 @@
+SUPABASE
+
+Project Settings -> API Keys
+
+Anon / public: (anon public key) llave publica para frontend
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inltenp6c3NqenF3eWJvcXhoeW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTczNTEsImV4cCI6MjA3NzI3MzM1MX0.dbdGkJqL5Oxd0BY8EpOt_IdZ0Ma0u0MGRiBml_IvV9o
+
+service_role / secret: (service_role key) llave privada NO PUBLICA para scripts en el servidor, NUNCA en el frontend
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inltenp6c3NqenF3eWJvcXhoeW9pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTY5NzM1MSwiZXhwIjoyMDc3MjczMzUxfQ.yWvXrjCkcIU512nZWjvdbicyRZTlNjnpgXaP3oeZo5s
+
+url: (Project URL) base url
+https://ymzzzssjzqwyboqxhyoi.supabase.co
+
+INDICACIONES
+1. Ingresar a supabase al proyecto llamado Inmobiliaria House Masters
+2. password: HouseMastersMedellin
+2. Ejecutar el script "scriptLimpiarBaseDeDatos.sql"
+3. Ejecutar el script "scriptCreacionDataBase.sql"
+4. Crear un usuario el cual sera el administrador. Authentication -> Users -> Add user
+5. Cambia dentro de la funcion is_admin() el UID que hay por el UID del user creado, en el script "scriptPoliticas.sql" y ejecutarlo.
+6. Crear un bucket publico llamado "properties" en el cual se almacenara toda la multimedia de las propiedades. Storage -> New bucket
+7. Ejecutar el script "scriptPoliticasStorageObjects.sql"
+8. Abrir VsCode y Descargar la extension Live Server 
+9. sitio web -> index.html -> Go Live
+10. Agregar, modificar o eliminar las propiedades que quieran.
+
